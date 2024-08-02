@@ -21,6 +21,8 @@ class ContainerChallengeModel(Challenges):
     minimum = db.Column(db.Integer, default=0)
     decay = db.Column(db.Integer, default=0)
 
+    flag_injection_path = db.Column(db.String(255))
+                                    
     def __init__(self, *args, **kwargs):
         super(ContainerChallengeModel, self).__init__(**kwargs)
         self.value = kwargs["initial"]

@@ -104,6 +104,17 @@
 	</label>
 	<input type="text" class="form-control" name="volumes" placeholder="Enter volumes or leave blank">
 </div>
+
+<!-- In create.html and update.html -->
+<div class="form-group">
+    <label>
+        Flag Injection Path<br>
+        <small class="form-text text-muted">
+            Path in the container where the flag should be injected
+        </small>
+    </label>
+    <input type="text" class="form-control" name="flag_injection_path" value="{{ challenge.flag_injection_path }}">
+</div>
 {% endblock %}
 
 {% block type %}

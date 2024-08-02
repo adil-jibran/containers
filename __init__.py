@@ -1,5 +1,6 @@
 from __future__ import division
 
+from logging import Manager
 import time
 import json
 import datetime
@@ -18,6 +19,11 @@ from CTFd.utils import get_config
 from .models import ContainerChallengeModel, ContainerInfoModel, ContainerSettingsModel
 from .container_manager import ContainerManager, ContainerException
 
+import rstr
+from .models import ContainerChallengeModel, ContainerInfoModel
+from .logger import logger
+
+
 def get_settings_path():
     import os
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
@@ -27,6 +33,44 @@ settings = json.load(open(get_settings_path()))
 USERS_MODE = settings["modes"]["USERS_MODE"]
 TEAMS_MODE = settings["modes"]["TEAMS_MODE"]
 
+# ///////////////////////new//////////////////////////////
+class CTFdWrapper:
+    @staticmethod
+    def is_chal(chal_id):
+        return ContainerChallengeModel.query.filter_by(id=chal_id).first() is not None
+
+    @staticmethod
+    def is_team(team_id):
+        # Implement team check based on your CTFd setup
+        pass
+
+    @staticmethod
+    def get_challenge_flag(chal_id):
+        challenge = ContainerChallengeModel.query.filter_by(id=chal_id).first()
+        if challenge:
+            return [{'content': challenge.flag}]
+        return None
+
+    @staticmethod
+    def get_submitted_flags(chal_id):
+        # Implement this method based on your CTFd setup
+        pass
+
+class DatabaseWrapper:
+    @staticmethod
+    def get_specific(chal_id, team_id):
+        return ContainerInfoModel.query.filter_by(challenge_id=chal_id, team_id=team_id).first()
+
+    @staticmethod
+    def insert(flag, team_id, chal_id):
+        container_info = ContainerInfoModel.query.filter_by(challenge_id=chal_id, team_id=team_id).first()
+        if container_info:
+            container_info.flag = flag
+            db.session.commit()
+
+ctfd_wrapper = CTFdWrapper()
+db_wrapper = DatabaseWrapper()
+manager = Manager(ctfd_wrapper, db_wrapper)
 
 class ContainerChallenge(BaseChallenge):
     id = settings["plugin-info"]["id"]  # Unique identifier used to register challenges
@@ -237,6 +281,21 @@ def load(app: Flask):
                 challenge_id=challenge.id, user_id=xid)           
         running_container = running_containers.first()
 
+
+        # Generate flag
+        if is_team:
+            flag = manager.generate_flag(str(chal_id), str(xid))
+        else:
+            flag = manager.generate_flag(str(chal_id), str(uid))
+
+        # Inject flag into container
+        challenge = ContainerChallengeModel.query.filter_by(id=chal_id).first()
+        if challenge.flag_injection_path:
+            try:
+                container_manager.inject_flag(created_container.id, flag, challenge.flag_injection_path)
+            except ContainerException as err:
+                return {"error": f"Failed to inject flag: {str(err)}"}
+            
         # If a container is already running for the team, return it
         if running_container:
             # Check if Docker says the container is still running before returning it
@@ -299,6 +358,7 @@ def load(app: Flask):
                 timestamp=int(time.time()),
                 expires=expires
             )
+        new_container.flag = flag
         db.session.add(new_container)
         db.session.commit()
 
@@ -762,4 +822,10 @@ def load(app: Flask):
             ContainerInfoModel.timestamp.desc()).all()
         return render_template('container_settings.html', settings=container_manager.settings)
 
+    @containers_bp.route('/admin/flags', methods=['GET'])
+    @admins_only
+    def view_generated_flags():
+        flags = ContainerInfoModel.query.filter(ContainerInfoModel.flag.isnot(None)).all()
+        return render_template('container_flags.html', flags=flags)
+    
     app.register_blueprint(containers_bp)

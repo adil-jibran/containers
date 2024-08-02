@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Generated Flags</h1>
+    </div>
+</div>
+<div class="container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Challenge ID</th>
+                <th>Team/User ID</th>
+                <th>Flag</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for flag in flags %}
+            <tr>
+                <td>{{ flag.challenge_id }}</td>
+                <td>{{ flag.team_id or flag.user_id }}</td>
+                <td>{{ flag.flag }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

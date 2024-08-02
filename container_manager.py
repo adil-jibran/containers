@@ -42,6 +42,12 @@ class ContainerManager:
         except ContainerException:
             print("Docker could not initialize or connect.")
             return
+        
+        def inject_flag(self, container_id, flag, injection_path):
+            command = f"echo {flag} > {injection_path}"
+            exit_code, output = self.client.containers.get(container_id).exec_run(command)
+            if exit_code != 0:
+                raise ContainerException(f"Failed to inject flag: {output.decode()}")
 
     def initialize_connection(self, settings, app) -> None:
         self.settings = settings
